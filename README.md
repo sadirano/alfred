@@ -29,7 +29,7 @@ in Settings.
 | Tags, Spaces, saved filters, statuses, counters | Opening local `file://` items |
 | Search, boolean tag queries, trash/restore/purge | Revision history |
 | AniList link-out, access metrics, export/import | Re-fetching metadata for non-YouTube links |
-| Per-Space AI note templates (create / edit / @-mention) | AI note generation, file attachments & image uploads |
+| Per-Space AI note templates (create / edit) | AI note generation (@-mention + draft), file attachments & image uploads |
 
 ## Run it locally
 
