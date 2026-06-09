@@ -9,10 +9,10 @@
 // ---------------------------------------------------------------------------
 
 /** Display name shown in the header, backup filenames, and demo copy. */
-export const APP_NAME = "alfad";
+export const APP_NAME = "alfred";
 
 /** localStorage key namespace. Keys are built as `${STORAGE_PREFIX}:<name>`. */
 export const STORAGE_PREFIX = APP_NAME;
 
 /** GitHub Pages base path the app is published under (must start and end with /). */
-export const BASE_PATH = "/alfad/";
+export const BASE_PATH = "/alfred/";

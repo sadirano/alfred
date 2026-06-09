@@ -5,7 +5,7 @@ import { getHideUnsupported, setHideUnsupported } from "../lib/demo";
 import { APP_NAME } from "../config";
 
 // Settings for the browser-only demo: toggle the "Full version only" badges and
-// back up / restore the whole library. Alfad keeps everything in localStorage,
+// back up / restore the whole library. This demo keeps everything in localStorage,
 // so export/import is the only backup there is.
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();

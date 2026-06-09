@@ -1,6 +1,6 @@
 {
-  "name": "alfad",
-  "short_name": "alfad",
+  "name": "alfred",
+  "short_name": "alfred",
   "description": "Browser-only favorites demo",
   "start_url": "./",
   "scope": "./",

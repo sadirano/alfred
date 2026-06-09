@@ -113,7 +113,7 @@ export class ApiError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Alfad is a browser-only demo: the FastAPI backend is NOT shipped. The whole
+// This is a browser-only demo: the FastAPI backend is NOT shipped. The whole
 // data layer lives in localStorage under a single JSON document, and every
 // method below mirrors the semantics of the original `app/` Python code so the
 // pages, react-query usage, and components are unchanged. All methods return
@@ -731,7 +731,7 @@ export const api = {
 
 // --- backup / restore (Phase F) --------------------------------------------
 
-/** The entire alfad:db document as a pretty-printed JSON string for download. */
+/** The entire localStorage DB document as a pretty-printed JSON string for download. */
 export function exportDb(): string {
   return JSON.stringify(loadDb(), null, 2);
 }
