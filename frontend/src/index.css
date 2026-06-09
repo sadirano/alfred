@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   color-scheme: dark;
@@ -10,4 +11,195 @@ html, body, #root {
 
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* ─── Markdown body ─────────────────────────────────────────────── */
+
+.markdown-body {
+  color: #d4d4d8;           /* zinc-300 */
+  font-size: 0.875rem;
+  line-height: 1.75;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Headings */
+.markdown-body h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #27272a;     /* zinc-800 */
+  color: #fafafa;           /* zinc-50 */
+}
+.markdown-body h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #27272a;
+  color: #f4f4f5;           /* zinc-100 */
+}
+.markdown-body h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: #e4e4e7;           /* zinc-200 */
+}
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+  color: #e4e4e7;
+}
+.markdown-body :first-child {
+  margin-top: 0;
+}
+
+/* Paragraphs */
+.markdown-body p {
+  margin: 0.625rem 0;
+}
+
+/* Strong, emphasis, strikethrough */
+.markdown-body strong {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+.markdown-body em {
+  font-style: italic;
+}
+.markdown-body del {
+  text-decoration: line-through;
+  color: #71717a;           /* zinc-500 */
+}
+
+/* Lists */
+.markdown-body ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.markdown-body ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.markdown-body li {
+  margin: 0.25rem 0;
+}
+.markdown-body li > p {
+  margin: 0.25rem 0;
+}
+
+/* Nested lists */
+.markdown-body ul ul,
+.markdown-body ol ul {
+  list-style-type: circle;
+}
+.markdown-body ul ul ul,
+.markdown-body ol ul ul,
+.markdown-body ol ol ul {
+  list-style-type: square;
+}
+
+/* Task list (GFM) */
+.markdown-body .contains-task-list,
+.markdown-body ul:has(> li > input[type="checkbox"]) {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.markdown-body .task-list-item,
+.markdown-body li:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+/* Footnotes (GFM) */
+.markdown-body .footnotes {
+  font-size: 0.8rem;
+  border-top: 1px solid #27272a;
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  color: #a1a1aa;           /* zinc-400 */
+}
+
+/* ─── Highlight.js theme (GitHub-dark inspired) ───────────────── */
+
+.markdown-body pre code.hljs {
+  display: block;
+  padding: 0;
+  background: transparent;
+}
+.markdown-body code.hljs {
+  padding: 0;
+}
+
+.hljs {
+  color: #c9d1d9;
+}
+.hljs-keyword,
+.hljs-built_in,
+.hljs-type {
+  color: #ff7b72;
+}
+.hljs-string,
+.hljs-attr {
+  color: #a5d6ff;
+}
+.hljs-number,
+.hljs-literal {
+  color: #79c0ff;
+}
+.hljs-comment,
+.hljs-doctag {
+  color: #8b949e;
+  font-style: italic;
+}
+.hljs-title,
+.hljs-title\.class_,
+.hljs-title\.function_ {
+  color: #d2a8ff;
+}
+.hljs-variable,
+.hljs-template-variable {
+  color: #ffa657;
+}
+.hljs-params {
+  color: #c9d1d9;
+}
+.hljs-regexp {
+  color: #7ee787;
+}
+.hljs-meta {
+  color: #79c0ff;
+}
+.hljs-symbol {
+  color: #79c0ff;
+}
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-selector-tag {
+  color: #7ee787;
+}
+.hljs-addition {
+  color: #aff5b4;
+  background: rgba(46, 160, 67, 0.15);
+}
+.hljs-deletion {
+  color: #ffa198;
+  background: rgba(248, 81, 73, 0.15);
+}
+.hljs-section {
+  color: #79c0ff;
+  font-weight: 700;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
 }

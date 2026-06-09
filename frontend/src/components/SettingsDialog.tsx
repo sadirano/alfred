@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { exportDb, importDb } from "../api/client";
 import { getHideUnsupported, setHideUnsupported } from "../lib/demo";
+import { APP_NAME } from "../config";
 
 // Settings for the browser-only demo: toggle the "Full version only" badges and
 // back up / restore the whole library. Alfad keeps everything in localStorage,
@@ -23,7 +24,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `alfad-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `${APP_NAME}-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

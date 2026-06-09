@@ -1,3 +1,5 @@
+import { APP_NAME, STORAGE_PREFIX } from "../config";
+
 export type ItemKind = "youtube" | "url" | "file" | "note";
 export type ItemStatus = "plan" | "in-progress" | "completed" | "archived";
 
@@ -68,8 +70,16 @@ export interface ItemPatch {
   thumbnail_url?: string | null;
   progress?: number;
   total?: number | null;
+  url?: string | null;
+  file_path?: string | null;
   anilist_id?: number | null;
   related_links?: RelatedLink[];
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  content: string;
 }
 
 export interface Space {
@@ -79,6 +89,8 @@ export interface Space {
   tags: string[];
   // Per-Space display labels for the 3 active statuses; null = canonical defaults.
   labels: Record<string, string> | null;
+  note_template_md: string;
+  templates: Template[];
   created_at: string;
 }
 
@@ -108,7 +120,7 @@ export class ApiError extends Error {
 // resolved Promises so callers can stay async.
 // ---------------------------------------------------------------------------
 
-const DB_KEY = "alfad:db";
+const DB_KEY = `${STORAGE_PREFIX}:db`;
 
 interface Db {
   seq: number;                 // id counter for items/spaces/filters
@@ -133,7 +145,13 @@ function loadDb(): Db {
       tagSeq: parsed.tagSeq ?? 0,
       tagIds: parsed.tagIds ?? {},
       items: parsed.items ?? [],
-      spaces: parsed.spaces ?? [],
+      // Backfill Space fields added after a build was first shipped, so spaces
+      // saved by an older demo don't crash components that read them unguarded.
+      spaces: (parsed.spaces ?? []).map((s: any) => ({
+        note_template_md: "",
+        templates: [],
+        ...s,
+      })),
       savedFilters: parsed.savedFilters ?? [],
     };
   } catch {
@@ -400,6 +418,13 @@ function runQuery(db: Db, q: ItemQuery): Item[] {
   return items.slice(offset, offset + limit);
 }
 
+// Backend-only endpoints (AI generation, server-side file storage). The UI gates
+// these behind FullVersionBadge so they're never actually invoked in the demo;
+// the rejection exists only as a safety net and to satisfy the call signature.
+function fullVersionOnly(feature: string): ApiError {
+  return new ApiError(501, { detail: `${feature} needs the backend (full version only).` });
+}
+
 // ---------------------------------------------------------------------------
 
 export const api = {
@@ -470,7 +495,7 @@ export const api = {
     if (body.related_links !== undefined) {
       item.related_links = (body.related_links ?? []).filter((l) => (l.url || "").trim());
     }
-    for (const k of ["title", "notes_md", "status", "description", "thumbnail_url", "progress", "total", "anilist_id"] as const) {
+    for (const k of ["title", "notes_md", "status", "description", "thumbnail_url", "progress", "total", "url", "file_path", "anilist_id"] as const) {
       if (body[k] !== undefined) (item as any)[k] = body[k];
     }
     item.updated_at = nowIso();
@@ -650,6 +675,8 @@ export const api = {
       namespaces: [...namespaces].sort(),
       tags: [...tags].sort(),
       labels: labels && Object.keys(labels).length ? labels : null,
+      note_template_md: "",
+      templates: [],
       created_at: nowIso(),
     };
     db.spaces.push(s);
@@ -657,7 +684,7 @@ export const api = {
     return Promise.resolve(clone(s));
   },
 
-  updateSpace: (id: number, data: { name?: string; namespaces?: string[]; tags?: string[]; labels?: Record<string, string> | null }) => {
+  updateSpace: (id: number, data: { name?: string; namespaces?: string[]; tags?: string[]; labels?: Record<string, string> | null; note_template_md?: string; templates?: Template[] }) => {
     const db = loadDb();
     const s = db.spaces.find((x) => x.id === id);
     if (!s) return Promise.reject(new ApiError(404, { detail: "not found" }));
@@ -667,6 +694,8 @@ export const api = {
     if (data.labels !== undefined) {
       s.labels = data.labels && Object.keys(data.labels).length ? data.labels : null;
     }
+    if (data.note_template_md !== undefined) s.note_template_md = data.note_template_md;
+    if (data.templates !== undefined) s.templates = data.templates;
     saveDb(db);
     return Promise.resolve(clone(s));
   },
@@ -681,6 +710,23 @@ export const api = {
     saveDb(db);
     return Promise.resolve();
   },
+
+  // --- backend-only (gated by FullVersionBadge, never reached in the demo) ---
+
+  // AI note generation ran server-side against Gemini in the full version.
+  askAI: (_prompt: string): Promise<{ response: string }> =>
+    Promise.reject(fullVersionOnly("AI notes")),
+
+  // Server-side attachment storage. The read resolves empty so the attachments
+  // panel renders cleanly; writes reject (and the UI badges them full-version).
+  listAttachments: (_itemId: number): Promise<{ name: string; size: number; url: string }[]> =>
+    Promise.resolve([]),
+  uploadItemFile: (_itemId: number, _file: File): Promise<{ url: string }> =>
+    Promise.reject(fullVersionOnly("File uploads")),
+  uploadAttachment: (_itemId: number, _file: File): Promise<{ name: string; size: number; url: string }> =>
+    Promise.reject(fullVersionOnly("Attachments")),
+  deleteAttachment: (_itemId: number, _name: string): Promise<void> =>
+    Promise.reject(fullVersionOnly("Attachments")),
 };
 
 // --- backup / restore (Phase F) --------------------------------------------
@@ -694,7 +740,7 @@ export function exportDb(): string {
 export function importDb(json: string): void {
   const parsed = JSON.parse(json);
   if (typeof parsed !== "object" || parsed == null || !Array.isArray(parsed.items)) {
-    throw new Error("Not a valid Alfad backup file.");
+    throw new Error(`Not a valid ${APP_NAME} backup file.`);
   }
   const db: Db = {
     seq: parsed.seq ?? 0,

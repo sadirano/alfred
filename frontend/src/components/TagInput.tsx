@@ -7,6 +7,7 @@ interface Props {
   onChange: (next: string[]) => void;
   placeholder?: string;
   browsable?: boolean;
+  allowedNamespaces?: string[];
 }
 
 function TagPill({ name, onRemove }: { name: string; onRemove?: () => void }) {
@@ -30,7 +31,12 @@ export function renderTagName(name: string) {
   return <><span className="text-zinc-500">{name.slice(0, colon + 1)}</span>{name.slice(colon + 1)}</>;
 }
 
-export default function TagInput({ value, onChange, placeholder, browsable = true }: Props) {
+function tagNamespace(name: string): string {
+  const colon = name.indexOf(":");
+  return colon > 0 ? name.slice(0, colon) : "";
+}
+
+export default function TagInput({ value, onChange, placeholder, browsable = true, allowedNamespaces }: Props) {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [focused, setFocused] = useState(false);
@@ -38,8 +44,15 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
   const [browseOpen, setBrowseOpen] = useState(false);
   const [browseFilter, setBrowseFilter] = useState("");
   const [copied, setCopied] = useState(false);
+  // Set when a commit is dropped because every part lacked a namespace, so we
+  // can tell the user why nothing was added instead of failing silently.
+  const [needsNamespace, setNeedsNamespace] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Tracks latest input value for the blur handler's setTimeout closure, so a
+  // suggestion mousedown that clears the input is visible when the timer fires.
+  const pendingInput = useRef(input);
+  pendingInput.current = input;
 
   // All tags, grouped by namespace (AniList-style browse panel). Shares the
   // ["tags"] query cache with FilterSidebar so we don't refetch.
@@ -55,8 +68,8 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
     const map: Record<string, typeof allTags> = {};
     for (const t of allTags) {
       if (needle && !t.name.toLowerCase().includes(needle)) continue;
-      const colon = t.name.indexOf(":");
-      const ns = colon > 0 ? t.name.slice(0, colon) : "";
+      const ns = tagNamespace(t.name);
+      if (allowedNamespaces?.length && !allowedNamespaces.includes(ns)) continue;
       (map[ns] ??= []).push(t);
     }
     for (const ns in map) {
@@ -80,7 +93,12 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
     const t = setTimeout(async () => {
       const tags = await api.listTags(input.trim());
       if (!cancel) {
-        setSuggestions(tags.map(t => t.name).filter(n => !value.includes(n)).slice(0, 8));
+        setSuggestions(
+          tags.map(t => t.name)
+            .filter(n => !value.includes(n))
+            .filter(n => !allowedNamespaces?.length || allowedNamespaces.includes(tagNamespace(n)))
+            .slice(0, 8)
+        );
         setActiveIdx(-1);
       }
     }, 100);
@@ -95,9 +113,21 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
       .split(",")
       .map(s => s.trim().toLowerCase().replace(/\s+/g, "-"))
       .filter(Boolean);
-    if (!parts.length) return;
+    // Every tag must be namespaced (e.g. "genre:romance") with a non-empty
+    // namespace and value — ":x" and "genre:" are rejected. Drop invalid parts;
+    // if that leaves nothing, keep the typed input and surface a hint instead of
+    // silently clearing it.
+    const valid = parts.filter(p => {
+      const colon = p.indexOf(":");
+      return colon > 0 && colon < p.length - 1;
+    });
+    if (!valid.length) {
+      setNeedsNamespace(parts.length > 0);
+      return;
+    }
+    setNeedsNamespace(false);
     const next = [...value];
-    for (const p of parts) if (!next.includes(p)) next.push(p);
+    for (const p of valid) if (!next.includes(p)) next.push(p);
     if (next.length !== value.length) onChange(next);
     setInput("");
     setSuggestions([]);
@@ -190,9 +220,10 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
           className="flex-1 min-w-32 bg-transparent outline-none text-sm"
           value={input}
           placeholder={placeholder ?? "add tag… (namespace:value)"}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => { setInput(e.target.value); if (needsNamespace) setNeedsNamespace(false); }}
+          aria-describedby={needsNamespace ? "tags-namespace-hint" : undefined}
           onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onBlur={() => setTimeout(() => { setFocused(false); commit(pendingInput.current); }, 150)}
           onKeyDown={handleKeyDown}
           onPaste={e => {
             const text = e.clipboardData.getData("text");
@@ -228,6 +259,12 @@ export default function TagInput({ value, onChange, placeholder, browsable = tru
           </button>
         )}
       </div>
+
+      {needsNamespace && (
+        <div id="tags-namespace-hint" className="mt-1 text-xs text-amber-400/80">
+          Tags need a namespace, e.g. <span className="font-mono">genre:value</span>
+        </div>
+      )}
 
       {browsable && browseOpen && (
         <div className="mt-1.5 bg-zinc-900 border border-zinc-800 rounded p-2">

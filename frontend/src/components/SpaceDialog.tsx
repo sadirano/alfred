@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, ItemStatus, Space } from "../api/client";
+import { api, ItemStatus, Space, Template } from "../api/client";
 import { DEFAULT_LABELS } from "../lib/status";
 import TagInput from "./TagInput";
 
@@ -9,7 +9,7 @@ const LABELLED_STATUSES: ItemStatus[] = ["plan", "in-progress", "completed"];
 
 interface Props {
   space?: Space;
-  onSave: (name: string, namespaces: string[], tags: string[], labels: Record<string, string> | null) => void;
+  onSave: (name: string, namespaces: string[], tags: string[], labels: Record<string, string> | null, templates: Template[]) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -19,6 +19,7 @@ export default function SpaceDialog({ space, onSave, onDelete, onClose }: Props)
   const [selectedNs, setSelectedNs] = useState<Set<string>>(new Set(space?.namespaces ?? []));
   const [requiredTags, setRequiredTags] = useState<string[]>(space?.tags ?? []);
   const [labels, setLabels] = useState<Record<string, string>>(space?.labels ?? {});
+  const [templates, setTemplates] = useState<Template[]>(space?.templates ?? []);
   const [nsInput, setNsInput] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -63,7 +64,7 @@ export default function SpaceDialog({ space, onSave, onDelete, onClose }: Props)
       const v = labels[s]?.trim();
       if (v) cleaned[s] = v;
     }
-    onSave(name.trim(), Array.from(selectedNs), requiredTags, cleaned);
+    onSave(name.trim(), Array.from(selectedNs), requiredTags, cleaned, templates);
   }
 
   return (
@@ -162,6 +163,48 @@ export default function SpaceDialog({ space, onSave, onDelete, onClose }: Props)
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Templates */}
+        <div>
+          <label className="text-xs text-zinc-400 mb-1 block">Templates</label>
+          <p className="text-[10px] text-zinc-500 mb-2">Manage the AI note templates available for this space.</p>
+          {templates.length === 0 ? (
+            <p className="text-xs text-zinc-600">No templates saved yet. You can save a template while editing an item's notes.</p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t, i) => (
+                <div key={t.id} className="bg-zinc-800 border border-zinc-700 rounded p-2 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <input
+                      value={t.name}
+                      onChange={e => {
+                        const newT = [...templates];
+                        newT[i] = { ...t, name: e.target.value };
+                        setTemplates(newT);
+                      }}
+                      className="bg-transparent font-medium text-sm outline-none w-full"
+                    />
+                    <button
+                      onClick={() => setTemplates(templates.filter(x => x.id !== t.id))}
+                      className="text-zinc-500 hover:text-red-400 ml-2"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <textarea
+                    value={t.content}
+                    onChange={e => {
+                      const newT = [...templates];
+                      newT[i] = { ...t, content: e.target.value };
+                      setTemplates(newT);
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-1.5 text-xs font-mono resize-none h-16 outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actions */}

@@ -1,42 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { api, Item, ItemQuery, ItemStatus } from "../api/client";
 import { NEXT_STATUS } from "../lib/status";
 import FilterSidebar from "../components/FilterSidebar";
 import ItemCard, { Layout } from "../components/ItemCard";
-
-// Shown when the library is genuinely empty (no items, no filters). Alfad ships
-// with no seed data on purpose — the point is that you own and control your data
-// — so this teaches the first few moves instead of pre-loading content.
-function EmptyState() {
-  const steps = [
-    { n: "1", t: "Add something", d: "Click + Add (top right). Paste any URL, point at a local file, or jot a note." },
-    { n: "2", t: "Paste a YouTube link", d: "It auto-fills the title, channel, and thumbnail right in your browser — no server involved." },
-    { n: "3", t: "Create a Space", d: "Use the + next to the nav to carve out a focused view (e.g. by a tag namespace)." },
-    { n: "4", t: "Tag things", d: "Tags drive search, filtering, and counters. Type a few when you add or open an item." },
-  ];
-  return (
-    <div className="max-w-2xl mx-auto py-10">
-      <h1 className="text-xl font-semibold text-zinc-100 mb-1">Your library is empty — and it's yours.</h1>
-      <p className="text-sm text-zinc-400 mb-6">
-        Nothing is pre-loaded. Everything you add lives in <em>this browser</em> (export a backup anytime in Settings).
-        Here's how to get going:
-      </p>
-      <ol className="space-y-3">
-        {steps.map(s => (
-          <li key={s.n} className="flex gap-3">
-            <span className="shrink-0 w-7 h-7 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-sm font-medium">{s.n}</span>
-            <div>
-              <p className="text-sm text-zinc-200 font-medium">{s.t}</p>
-              <p className="text-sm text-zinc-500">{s.d}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
+import { STORAGE_PREFIX } from "../config";
 
 function LayoutBtn({ active, title, onClick, children }: {
   active: boolean;
@@ -56,9 +25,49 @@ function LayoutBtn({ active, title, onClick, children }: {
   );
 }
 
+const DEFAULT_RIGHT_W = 256;
+const MIN_SIDE_W = 180;
+const HANDLE_W = 6;
+
 export default function Library() {
   const [sp] = useSearchParams();
   const qc = useQueryClient();
+  
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}:librarySidebarOpen`);
+    return saved === "false" ? false : true;
+  });
+  
+  const [rightW, setRightW] = useState(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}:libraryRightW`);
+    return saved ? Number(saved) : DEFAULT_RIGHT_W;
+  });
+  
+  const dragging = useRef<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => { localStorage.setItem(`${STORAGE_PREFIX}:librarySidebarOpen`, String(sidebarOpen)); }, [sidebarOpen]);
+  useEffect(() => { localStorage.setItem(`${STORAGE_PREFIX}:libraryRightW`, String(rightW)); }, [rightW]);
+  
+  useEffect(() => {
+    function onMove(e: PointerEvent) {
+      if (!dragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newW = Math.max(MIN_SIDE_W, Math.min(rect.right - e.clientX, rect.width - MIN_SIDE_W - HANDLE_W));
+      setRightW(newW);
+    }
+    function onUp() {
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
   const [layout, setLayout] = useState<Layout>(() =>
     (localStorage.getItem("library-layout") as Layout) || "normal"
   );
@@ -86,13 +95,6 @@ export default function Library() {
     queryKey: ["items", query],
     queryFn: () => api.listItems(query),
   });
-
-  // Whether any filter/search/space is active — distinguishes "filtered to zero"
-  // from a genuinely empty library (which gets the onboarding panel).
-  const isFiltered = !!(
-    query.q || query.tags?.length || query.exclude_tags?.length ||
-    query.status_in?.length || query.space_id != null
-  );
 
   // Spaces supply the per-Space status labels shown on cards; resolve the active
   // one from the URL. Unscoped Library => no space => canonical default labels.
@@ -134,12 +136,14 @@ export default function Library() {
   }[layout];
 
   return (
-    <div className="flex h-[calc(100vh-2.75rem)]">
-      <FilterSidebar />
-      <div className="flex-1 overflow-y-auto">
+    <div ref={containerRef} className="flex h-full overflow-hidden">
+      <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="sticky top-0 bg-zinc-950/95 backdrop-blur z-10 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
-          <span className="text-sm text-zinc-400">{items.length} item{items.length === 1 ? "" : "s"}</span>
-          <div className="flex gap-0.5">
+          <div className="flex items-center">
+            <span className="text-sm text-zinc-400 font-medium">{items.length} item{items.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-0.5">
             <LayoutBtn active={layout === "normal"} title="Normal grid" onClick={() => changeLayout("normal")}>
               {/* 3x3 small grid */}
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -177,17 +181,25 @@ export default function Library() {
                 <rect x="5.5" y="14" width="6.5" height="1" rx="0.5"/>
               </svg>
             </LayoutBtn>
+            </div>
+            <div className="w-px h-4 bg-zinc-800" />
+            <button
+              className={`p-1.5 rounded transition-colors ${sidebarOpen ? "text-zinc-100 bg-zinc-800" : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"}`}
+              onClick={() => setSidebarOpen(o => !o)}
+              title="Toggle Filters"
+              aria-label="Toggle filters"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M1 3.5h14M4 8h8M6.5 12.5h3"/>
+              </svg>
+            </button>
           </div>
         </div>
         <div className="p-4">
           {isLoading ? (
             <div className="text-zinc-500">Loading…</div>
           ) : items.length === 0 ? (
-            isFiltered ? (
-              <div className="text-zinc-500">No items match these filters.</div>
-            ) : (
-              <EmptyState />
-            )
+            <div className="text-zinc-500">Nothing here yet. Click <b>+ Add</b>.</div>
           ) : (
             <div className={gridClass}>
               {items.map(it => (
@@ -205,6 +217,23 @@ export default function Library() {
           )}
         </div>
       </div>
+
+      {sidebarOpen && (
+        <div
+          className="hidden md:flex shrink-0 cursor-col-resize items-center justify-center hover:bg-zinc-700/40 active:bg-zinc-600/40 transition-colors"
+          style={{ width: HANDLE_W }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            dragging.current = true;
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+          }}
+        >
+          <div className="w-px h-8 bg-zinc-700 rounded-full" />
+        </div>
+      )}
+
+      <FilterSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={rightW} />
     </div>
   );
 }

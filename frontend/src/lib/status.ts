@@ -13,9 +13,9 @@ export const DEFAULT_LABELS: Record<ItemStatus, string> = {
 };
 
 export const STATUS_BADGE: Record<ItemStatus, string> = {
-  "plan": "bg-blue-600/30 text-blue-200",
-  "in-progress": "bg-amber-500/30 text-amber-200",
-  "completed": "bg-emerald-600/30 text-emerald-200",
+  "plan": "bg-blue-600 text-white",
+  "in-progress": "bg-amber-600 text-white",
+  "completed": "bg-emerald-600 text-white",
   "archived": "bg-zinc-700 text-zinc-300",
 };
 

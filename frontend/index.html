@@ -3,8 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>alfad — browser-only favorites demo</title>
+    <!-- Installable, full-screen PWA (no offline/service-worker). Install needs
+         an HTTPS secure context, which GitHub Pages provides. -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#09090b" />
+    <!-- iOS standalone: Safari ignores the manifest's display mode and needs
+         these explicit meta tags. -->
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="alfad" />
   </head>
   <body class="bg-zinc-950 text-zinc-100">
     <div id="root"></div>

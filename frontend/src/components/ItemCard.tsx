@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { api, fmtDuration, Item, itemLink, Space } from "../api/client";
 import { isSerialized } from "../lib/serialized";
 import { STATUS_BADGE, STATUS_ICON, statusLabel } from "../lib/status";
@@ -68,14 +68,14 @@ function TagEditorPopover({ item, onSave, onClose, className }: {
     function onDown(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) commit();
     }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
   });
 
   return (
     <div
       ref={ref}
-      className={`absolute z-30 w-72 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-2 ${className ?? ""}`}
+      className={`absolute z-30 w-72 max-w-[calc(100vw-1rem)] bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-2 ${className ?? ""}`}
     >
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs text-zinc-400">Edit tags</span>
@@ -90,6 +90,7 @@ function TagEditorPopover({ item, onSave, onClose, className }: {
 
 export default function ItemCard({ item, layout = "normal", space, onToggleWatched, onEditTags, onSetProgress }: Props) {
   const [editingTags, setEditingTags] = useState(false);
+  const location = useLocation();
   const link = itemLink(item);
   // A counter only makes sense for serialized content (anime/manga …), decided
   // by the item's tags. Plain videos/notes show no badge and no +1.
@@ -97,18 +98,14 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
 
   function btnBase(variant: "overlay" | "panel") {
     const bg = variant === "overlay" ? "bg-black/80" : "bg-zinc-800";
-    // Fixed square footprint so the stacked glyph buttons (↗ 🏷 ✓ +) line up
-    // uniformly regardless of each character's natural width — no mono font needed.
-    return `text-xs w-6 h-6 flex items-center justify-center rounded ${bg}`;
+    return `text-sm w-8 h-8 flex items-center justify-center rounded ${bg}`;
   }
 
   // Always-visible "open the resource" button — the whole point is reaching the
   // destination with zero friction, so it never hides behind hover. The click is
   // also what we count as an access (usage metrics); fire-and-forget.
   function OpenLink({ variant }: { variant: "overlay" | "panel" }) {
-    // file:// links are silently blocked from a web page, so the demo doesn't
-    // offer a dead "open" button for local-file items (badged on the detail page).
-    if (!link || item.kind === "file") return null;
+    if (!link) return null;
     return (
       <a
         href={link}
@@ -135,7 +132,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
             // Open-only + stopPropagation so the popover's click-outside handler
             // doesn't fight this button (toggling would close-then-reopen). Close
             // via Done or by clicking elsewhere — both save.
-            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={() => setEditingTags(true)}
             className={`${base} ${editingTags ? "bg-blue-700" : "hover:bg-blue-700"}`}
             title="Edit tags"
@@ -143,7 +140,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
             🏷
           </button>
         )}
-        {onToggleWatched && (
+        {onToggleWatched && item.kind !== "note" && (
           <button
             type="button"
             onClick={() => onToggleWatched(item)}
@@ -187,7 +184,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
     return (
       <div className="group relative">
         <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 hover:border-zinc-600 transition flex">
-          <Link to={`/items/${item.id}`} className="flex flex-1 min-w-0">
+          <Link to={`/items/${item.id}`} state={{ from: location.search }} className="flex flex-1 min-w-0">
             <div className="relative w-44 flex-shrink-0 bg-zinc-800 self-stretch">
               {item.thumbnail_url ? (
                 <img src={item.thumbnail_url} alt="" loading="lazy" className="w-full h-full object-cover" />
@@ -204,9 +201,11 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
             </div>
             <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
               <div className="flex items-start gap-2 flex-wrap">
-                <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] uppercase rounded ${STATUS_BADGE[item.status]}`}>
-                  {statusLabel(item.status, space)}
-                </span>
+                {item.kind !== "note" && (
+                  <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] uppercase rounded ${STATUS_BADGE[item.status]}`}>
+                    {statusLabel(item.status, space)}
+                  </span>
+                )}
                 <span className="text-sm font-medium line-clamp-2 group-hover:text-white">{item.title || "(untitled)"}</span>
               </div>
               {item.channel && <div className="text-xs text-zinc-400 line-clamp-1">{item.channel}</div>}
@@ -222,7 +221,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
           </Link>
           <div className="flex-shrink-0 px-2 flex flex-col gap-1 justify-center">
             <OpenLink variant="panel" />
-            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition">
+            <div className="flex flex-col gap-1 transition md:opacity-0 md:group-hover:opacity-100">
               <ActionButtons variant="panel" />
             </div>
           </div>
@@ -238,7 +237,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
   return (
     <div className="group relative">
       <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 hover:border-zinc-600 transition">
-        <Link to={`/items/${item.id}`} className="block">
+        <Link to={`/items/${item.id}`} state={{ from: location.search }} className="block">
           <div className="relative aspect-video bg-zinc-800">
             {item.thumbnail_url ? (
               <img src={item.thumbnail_url} alt="" loading="lazy" className="w-full h-full object-cover" />
@@ -252,9 +251,11 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
                 {fmtDuration(item.duration_sec)}
               </span>
             ) : null}
-            <span className={`absolute top-1 left-1 px-1.5 py-0.5 text-[10px] uppercase rounded ${STATUS_BADGE[item.status]}`}>
-              {statusLabel(item.status, space)}
-            </span>
+            {item.kind !== "note" && (
+              <span className={`absolute top-1 left-1 px-1.5 py-0.5 text-[10px] uppercase rounded ${STATUS_BADGE[item.status]}`}>
+                {statusLabel(item.status, space)}
+              </span>
+            )}
             <div className="absolute bottom-1 left-1 flex flex-wrap gap-1 max-w-[80%]">
               {tags.map(t => (
                 <span key={t.id} className="text-[10px] bg-black/70 text-zinc-100 rounded px-1.5 py-0.5">{renderTagName(t.name)}</span>
@@ -271,7 +272,7 @@ export default function ItemCard({ item, layout = "normal", space, onToggleWatch
       </div>
       <div className="absolute top-1 right-1 flex flex-col gap-1 items-end">
         <OpenLink variant="overlay" />
-        <div className="hidden group-hover:flex flex-col gap-1 items-end">
+        <div className="flex flex-col gap-1 items-end md:hidden md:group-hover:flex">
           <ActionButtons variant="overlay" />
         </div>
       </div>
